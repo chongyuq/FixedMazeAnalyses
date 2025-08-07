@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/FixedMazeAnalyses.iml" filepath="$PROJECT_DIR$/.idea/FixedMazeAnalyses.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../fixed_maze_analyses/.idea/fixed_maze_analyses.iml" filepath="$PROJECT_DIR$/../fixed_maze_analyses/.idea/fixed_maze_analyses.iml" />
     </modules>
   </component>
 </project>

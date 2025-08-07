@@ -1,0 +1,24 @@
+[project]
+name = "fixed_maze_analyses"
+version = "0.1.0"
+description = "packages that are used for analyses on the fixed maze"
+authors = [
+  { name = "Chongyu Qin", email = "chongyu.qin.20@ucl.ac.uk" }
+]
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+
+# Dependencies needed to use the package
+dependencies = [
+  "torch >= 2.7.1",
+  "numpy >= 2.3.1",
+  "typing-extensions >= 4.14.1"  # Often needed with newer PyTorch
+]
+
+[build-system]
+requires = ["setuptools>=80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
