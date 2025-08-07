@@ -11,9 +11,13 @@ requires-python = ">=3.13"
 
 # Dependencies needed to use the package
 dependencies = [
-  "torch >= 2.7.1",
-  "numpy >= 2.3.1",
-  "typing-extensions >= 4.14.1"  # Often needed with newer PyTorch
+    "torch >= 2.7.1",
+    "numpy >= 2.3.1",
+    "typing-extensions >= 4.14.1",
+    "pymongo >= 4.14.0",
+    "python-dotenv >= 1.1.1",  # don't forget lmdp package
+    "pandas >= 2.3.1",
+    "matplotlib >= 3.10.5",
 ]
 
 [build-system]

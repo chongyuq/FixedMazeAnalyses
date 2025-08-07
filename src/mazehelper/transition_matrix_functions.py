@@ -1,12 +1,13 @@
 import torch
 import torch.nn.functional as F
+from mazehelper.mazes_info import POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID
 
 
 def transition_matrix_from_action_matrix(action_matrix, ny=7, nx=7):
     """
     Create a transition matrix from an action matrix.
     The action matrix should have the last dimension of size 4,
-    representing the probabilities of moving right, up, left and down respectively.
+    representing the probabilities of moving right, up, left and down, respectively.
 
     The transition matrix will have shape (batch_size, ns, ns),
     where ns is the number of states (nx * ny).
@@ -91,9 +92,27 @@ def location_action_base_adjacency_matrix(nx=7, ny=7, reverse=True):
     return T
 
 
-def location_action_adjacency_matrix_from_maze_id(maze_id):
-    T_mask = possible_action_from_maze_id(maze_id=maze_id).t().flatten()
+def location_action_adjacency_matrix_from_maze_id(maze_id, reverse=True):
+    """
+    Returns the adjacency matrix for the maze specified by maze_id.
+    :param maze_id: the id of the maze, e.g. 1 for the first maze
+    :type maze_id: int
+    :param reverse: if True, the action a1 is allowed to be the opposite of a,
+    :type reverse: bool
+    :return: the adjacency matrix of shape (n_sa, n_sa) where n_sa is the number of
+    state-action pairs (n_s * 4), where n_s is the number of states
+    (nx * ny). The index i corresponds to location action (s, a) where
+    a = i // ns and s = i % ns. (x, y) = (s // ny, s % ny).
+    The four actions (0, 1, 2, 3) correspond to (right, up, left, down).
+    The transition matrix T is of shape (n_sa, n_sa).
+    A location-action pair (s, a) can transition to another location-action pair (s1, a1),
+    if s1 is the state that can be reached as a result of taking action a from state s,
+    and a1 is any action that can be taken from that location.
+    Not if reverse is False, then the action a1 is not allowed to be the opposite of a.
+    :rtype: torch.Tensor
+    """
+    T_mask = torch.tensor(POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID[maze_id])
     maze_mask = T_mask.unsqueeze(-1) @ T_mask.unsqueeze(-2)  # what are the possible SAs in the maze
-    _, adjacency_mask = adjacency_matrix()  # at each SA, what is the next possible SA
+    _, adjacency_mask = location_action_base_adjacency_matrix(nx=7, ny=7, reverse=reverse)
     maze_SA_adjacency_matrix = maze_mask * adjacency_mask
     return maze_SA_adjacency_matrix
