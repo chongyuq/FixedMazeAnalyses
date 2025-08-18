@@ -84,17 +84,28 @@ def plot_policy_all(policy,
     else:
         plot_maze(maze_id, ax=ax, color='gainsboro')
     ax.set_aspect('equal')
+    ax.axis('off')
     return
 
 
 def plot_policy_max(policy, maze_id, ax=None, fig=None, cmap=None, plot_maze_kwargs=None, **kwargs):
     """
-
-    :param policy: shape 49 x 4
-    :type policy:
-    :param maze_id: id of maze
-    :type maze_id:
-    :param kwargs:
+    plot_policy_max plots the maximum action policy on the maze.
+    :param policy: policy tensor of shape (49, 4) where the last dimension
+    represents the actions (right, up, left, down).
+    :type policy: torch.Tensor
+    :param maze_id: maze identifier, should be between 1 and 3
+    :type maze_id: int
+    :param ax: matplotlib axis to plot on, if None, current axis is used
+    :type ax:
+    :param fig: matplotlib figure to plot on, if None, current figure is used
+    :type fig:
+    :param cmap: colormap to use for the policy visualization, if None, default col
+    ormap is used
+    :type cmap: str or matplotlib.colors.Colormap
+    :param plot_maze_kwargs: kwargs for the plot_maze function
+    :type plot_maze_kwargs:
+    :param kwargs: quiver kwargs, such as color, scale, etc.
     :type kwargs:
     :return:
     :rtype:
@@ -116,4 +127,5 @@ def plot_policy_max(policy, maze_id, ax=None, fig=None, cmap=None, plot_maze_kwa
     else:
         plot_maze(maze_id, ax=ax)
     ax.invert_yaxis()
+    ax.axis('off')
     return

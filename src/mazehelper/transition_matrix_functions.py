@@ -113,6 +113,48 @@ def location_action_adjacency_matrix_from_maze_id(maze_id, reverse=True):
     """
     T_mask = torch.tensor(POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID[maze_id])
     maze_mask = T_mask.unsqueeze(-1) @ T_mask.unsqueeze(-2)  # what are the possible SAs in the maze
-    _, adjacency_mask = location_action_base_adjacency_matrix(nx=7, ny=7, reverse=reverse)
+    adjacency_mask = location_action_base_adjacency_matrix(nx=7, ny=7, reverse=reverse)
     maze_SA_adjacency_matrix = maze_mask * adjacency_mask
     return maze_SA_adjacency_matrix
+
+
+def location_action_straightish_transition_matrix(maze_id, straight_coef=3, remove_dead_ends=True, reversal_coef=1):
+    """
+    Generate a state-action transition matrix for a maze with a preference for straight actions.
+    :param maze_id: identifier for the maze, e.g. 1 for the first maze
+    :type maze_id: int
+    :param straight_coef: coefficient to increase the probability of straight actions, 3 means that straight actions are (3 + 1) times more likely than turning left or right
+    :type straight_coef: float
+    :param remove_dead_ends: remove dead ends from the adjacency matrix, if True, the dead ends are removed,
+    note this is done recursively so that no dead ends are left in the adjacency matrix
+    :type remove_dead_ends: bool
+    :param reversal_coef: coef to reduce the probability of reversal actions to zero, 1 means that reversal actions are not allowed, 0 means that reversal actions are fully allowed
+    :type reversal_coef: float
+    :return: a state-action transition matrix of shape (n_sa, n_sa) where n_sa is the number of state-action pairs (n_s * 4),
+    where n_s is the number of states (nx * ny). The index i corresponds to location action (s, a) where
+    a = i // ns and s = i % ns. (x, y) = (s // ny, s % ny).
+    The four actions (0, 1, 2, 3) correspond to (right, up, left, down).
+    The transition matrix T is of shape (n_sa, n_sa).
+    :rtype: torch.Tensor
+    """
+    # get the state action transition matrix without dead ends
+    # ------------------------------------------------------------------------------------------------------------------
+    adjacency_mask = location_action_base_adjacency_matrix(nx=7, ny=7, reverse=True)
+    adj = location_action_adjacency_matrix_from_maze_id(maze_id)
+    if remove_dead_ends:
+        dead_ends = (adj.sum(dim=-1) == 1).sum()
+        while dead_ends > 0:
+            sa_possible = (adj.sum(dim=-1) > 1).int()
+            adj = (sa_possible.unsqueeze(-1) @ sa_possible.unsqueeze(-2)) * adjacency_mask
+            dead_ends = (adj.sum(dim=-1) == 1).sum()
+
+    # Increase probability for when the action is the same and reduce probability of reversal to zero
+    # ------------------------------------------------------------------------------------------------------------------
+    straight_action_addition = torch.kron(torch.eye(4), torch.ones(49, 49) * straight_coef)
+    reverse_removal = torch.kron(F.one_hot((torch.arange(4) + 2) % 4), torch.ones(49, 49))
+    straight_encourage = 1 + straight_action_addition - reverse_removal * reversal_coef
+    G = adj * straight_encourage
+    norm = G.sum(dim=-1, keepdims=True)
+    norm[norm == 0] = 1  # if the norm is zero, get rid of it
+    G = G / norm
+    return G
