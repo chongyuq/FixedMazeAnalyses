@@ -3,10 +3,10 @@ from torch.distributions import Gamma, Categorical
 from mazehelper.transition_matrix_functions import *
 
 
-def random_route_generate(maze_id, n_routes=1, straight_coef=3, route_length_mean=None, route_length_var=None, reduce_overlap=False):
+def random_route_generate(maze_number, n_routes=1, straight_coef=3, route_length_mean=None, route_length_var=None, reduce_overlap=False):
     """
     Generates random routes in the maze with a given maze_id.
-    :param maze_id: int, identifier of the maze (1, 2, or 3)
+    :param maze_number: int, identifier of the maze (1, 2, or 3)
     :param n_routes: int, number of routes to generate
     :param straight_coef: int, coefficient for the straightness of the route
     :param route_length_mean: float, mean of the route length distribution, if None, a default value is used
@@ -31,7 +31,7 @@ def random_route_generate(maze_id, n_routes=1, straight_coef=3, route_length_mea
     # -----------------------------------------------------------------------------------------------------------------
     max_route_length = route_length.max().int()
     T = torch.arange(max_route_length).repeat(n_routes).reshape(n_routes, max_route_length)
-    G = location_action_straightish_transition_matrix(maze_id, straight_coef=straight_coef, reversal_coef=1, remove_dead_ends=True)
+    G = location_action_straightish_transition_matrix(maze_number, straight_coef=straight_coef, reversal_coef=1, remove_dead_ends=True)
     sa_possible = G.sum(dim=-1)
 
     # adjacency matrix of the maze, where actions going straight have a higher probability. Some routes will terminate

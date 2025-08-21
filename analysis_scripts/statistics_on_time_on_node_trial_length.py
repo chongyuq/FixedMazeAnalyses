@@ -8,7 +8,7 @@ import pandas as pd
 
 
 def get_time():
-    maze_behaviour = get_data(agent_type='mice_behaviour', maze_id=None)
+    maze_behaviour = get_data(agent_type='mice_behaviour', maze_number=None)
     time_at_node = maze_behaviour.time.shift(-1).to_numpy() - maze_behaviour.time.to_numpy()
     time_at_node[time_at_node < 0] = float('nan')
     maze_behaviour['time_at_node'] = time_at_node
@@ -42,25 +42,25 @@ def get_time():
             # Dictionary to hold row
             row = {
                 'subject_ID': subject_ID,
-                'maze': maze,
+                'maze_number': maze,
             }
 
             # Raw means and stds
             row['reward_time_mean'] = np.nanmean(r_time)
-            row['transition_time_mean'] = np.nanmean(t_time)
+            row['navigation_time_mean'] = np.nanmean(t_time)
             row['iti_time_mean'] = np.nanmean(iti_time)
 
             row['reward_std'] = np.nanstd(r_time)
-            row['transition_std'] = np.nanstd(t_time)
+            row['navigation_std'] = np.nanstd(t_time)
             row['iti_std'] = np.nanstd(iti_time)
 
             # Log means and stds
             row['reward_log_mean'] = np.nanmean(log_r_time)
-            row['transition_log_mean'] = np.nanmean(log_t_time)
+            row['navigation_log_mean'] = np.nanmean(log_t_time)
             row['iti_log_mean'] = np.nanmean(log_iti_time)
 
             row['reward_log_std'] = np.nanstd(log_r_time)
-            row['transition_log_std'] = np.nanstd(log_t_time)
+            row['navigation_log_std'] = np.nanstd(log_t_time)
             row['iti_log_std'] = np.nanstd(log_iti_time)
 
             rows.append(row)
@@ -74,7 +74,7 @@ def get_trial_info():
     # trial length
     # session length
     # iti length
-    maze_behaviour = get_data(agent_type='mice_behaviour', maze_id=None)
+    maze_behaviour = get_data(agent_type='mice_behaviour', maze_number=None)
     phase_end = maze_behaviour.trial_phase != maze_behaviour.trial_phase.shift(-1)
     maze_behaviour['phase_end'] = phase_end
     subject_IDs = maze_behaviour.subject_ID.unique().tolist()
@@ -106,7 +106,7 @@ def get_trial_info():
             # Store row data
             row = {
                 'subject_ID': subject_ID,
-                'maze': maze,
+                'maze_number': maze,
                 'trial_steps_mean': trial_length.float().mean().item(),
                 'trial_steps_std': trial_length.float().std().item(),
                 'session_steps_mean': session_length.float().mean().item(),

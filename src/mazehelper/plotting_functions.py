@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from mazehelper.mazes_info import POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID
 
 
-def plot_maze(maze_id,
+def plot_maze(maze_number,
               ax=None,
               fig=None,
               color='grey',
@@ -13,8 +13,8 @@ def plot_maze(maze_id,
               node_width=200):
     """
     Plot the maze with the specified maze_id.
-    :param maze_id: maze identifier, should be between 1 and 3
-    :type maze_id: int
+    :param maze_number: maze identifier, should be between 1 and 3
+    :type maze_number: int
     :param ax: matplotlib axis to plot on, if None, current axis is used
     :type ax:
     :param fig: matplotlib figure to plot on, if None, current figure is used
@@ -26,7 +26,7 @@ def plot_maze(maze_id,
     :param node_width: width of the nodes in the maze
     :type node_width: int
     """
-    transition_policy = torch.tensor(POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID[maze_id]).reshape(4, 49).t().reshape(7, 7, 4)
+    transition_policy = torch.tensor(POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID[maze_number]).reshape(4, 49).t().reshape(7, 7, 4)
     if ax is None:
         ax = plt.gca()
     if fig is None:
@@ -42,7 +42,7 @@ def plot_maze(maze_id,
 
 
 def plot_policy_all(policy,
-                    maze_id,
+                    maze_number,
                     ax=None,
                     plot_maze_kwargs=None,
                     **kwargs):
@@ -50,8 +50,8 @@ def plot_policy_all(policy,
     plot_policy_all plots the policy on the maze.
     :param policy: policy tensor of shape (7, 7, 4) where the last dimension represents the actions (right, up, left, down).
     :type policy: torch.Tensor
-    :param maze_id: maze identifier, should be between 1 and 3
-    :type maze_id: int
+    :param maze_number: maze identifier, should be between 1 and 3
+    :type maze_number: int
     :param ax: matplotlib axis to plot on, if None, current axis is used
     :type ax:
     :param plot_maze_kwargs: kwargs for the plot_maze function
@@ -80,22 +80,22 @@ def plot_policy_all(policy,
               0,
               -policy[..., 3], **kwargs)
     if plot_maze_kwargs is not None:
-        plot_maze(maze_id, ax=ax, **plot_maze_kwargs)
+        plot_maze(maze_number, ax=ax, **plot_maze_kwargs)
     else:
-        plot_maze(maze_id, ax=ax, color='gainsboro')
+        plot_maze(maze_number, ax=ax, color='gainsboro')
     ax.set_aspect('equal')
     ax.axis('off')
     return
 
 
-def plot_policy_max(policy, maze_id, ax=None, fig=None, cmap=None, plot_maze_kwargs=None, **kwargs):
+def plot_policy_max(policy, maze_number, ax=None, fig=None, cmap=None, plot_maze_kwargs=None, **kwargs):
     """
     plot_policy_max plots the maximum action policy on the maze.
     :param policy: policy tensor of shape (49, 4) where the last dimension
     represents the actions (right, up, left, down).
     :type policy: torch.Tensor
-    :param maze_id: maze identifier, should be between 1 and 3
-    :type maze_id: int
+    :param maze_number: maze identifier, should be between 1 and 3
+    :type maze_number: int
     :param ax: matplotlib axis to plot on, if None, current axis is used
     :type ax:
     :param fig: matplotlib figure to plot on, if None, current figure is used
@@ -123,9 +123,9 @@ def plot_policy_max(policy, maze_id, ax=None, fig=None, cmap=None, plot_maze_kwa
               (best_actions[..., 1] - best_actions[..., 3]) * policy.max(dim=-1)[0],
               **kwargs)
     if plot_maze_kwargs is not None:
-        plot_maze(maze_id, ax=ax, **plot_maze_kwargs)
+        plot_maze(maze_number, ax=ax, **plot_maze_kwargs)
     else:
-        plot_maze(maze_id, ax=ax)
+        plot_maze(maze_number, ax=ax)
     ax.invert_yaxis()
     ax.axis('off')
     return
