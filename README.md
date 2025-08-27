@@ -5,6 +5,9 @@ Need to set up mongodb and then update .env file with the following variables:
 
 - MONGO_DB: Name of the MongoDB database
 
+build the package using the following command:
+
+
 
 Note that index for the mazes are fixed. 
  - location index: 0 - 48, where 0 is the bottom left corner and 48 is the top right corner. 

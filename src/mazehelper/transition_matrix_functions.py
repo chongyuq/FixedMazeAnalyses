@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from mazehelper.mazes_info import POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID
+from datahelper.load_data import load_optimal_behaviour
 
 
 def transition_matrix_from_action_matrix(action_matrix, ny=7, nx=7):
@@ -158,3 +159,55 @@ def location_action_straightish_transition_matrix(maze_id, straight_coef=3, remo
     norm[norm == 0] = 1  # if the norm is zero, get rid of it
     G = G / norm
     return G
+
+
+def location_action_vector_transition_matrix(maze_id, inverse_temp=1):
+    """
+    Generate a location-action transition matrix for a maze with a preference for actions that move towards the goal using vector-based navigation.
+    The preference is controlled by the inverse temperature parameter, with higher values leading to a stronger preference.
+    :param maze_id: identifier for the maze, e.g. 1 for the first maze
+    :type maze_id: int
+    :param inverse_temp: inverse temperature parameter, higher values lead to a stronger preference for actions that move towards the goal
+    :type inverse_temp: float
+    :return: a state-action transition matrix of shape (n_sa, n_sa) where n_sa is the number of state-action pairs (n_s * 4),
+    where n_s is the number of states (nx * ny). The index i corresponds to location action (s, a) where
+    a = i // ns and s = i % ns. (x, y) = (s // ny, s % ny).
+    The four actions (0, 1, 2, 3) correspond to (right, up, left, down).
+    :rtype: torch.Tensor
+    """
+    # get the state action transition matrix without dead ends
+    # ------------------------------------------------------------------------------------------------------------------
+    adj = location_action_adjacency_matrix_from_maze_id(maze_id)
+
+    x = torch.arange(49)[:, None] // 7 - torch.arange(49)[None, :] // 7  # difference in x between all possible positions
+    y = torch.arange(49)[:, None] % 7 - torch.arange(49)[None, :] % 7  # difference in y between all possible positions
+
+    cos_theta = x / torch.sqrt(x ** 2 + y ** 2 + 1e-12)  # cosine of the angle between the two points 49 x 49
+    sin_theta = y / torch.sqrt(x ** 2 + y ** 2 + 1e-12)  # sine of the angle between the two points 49 x 49
+
+    spatial_mask = torch.stack([cos_theta, sin_theta,-cos_theta, -sin_theta], dim=-1)  # 49 x 49 x 4
+    spatial_mask = F.softmax(spatial_mask * inverse_temp, dim=-1)  # softmax the spatial mask, so all actions sum to 1 for each location pair
+    # softmax is applied here so that there's no need to deal with zeros in the adjacency matrix.
+    spatial_mask = spatial_mask.transpose(-1, -2).flatten(-2, -1)[:, None, :].repeat(1, 196, 1) # .repeat(1, 196).reshape(-1, 196, 196)
+    # translate this to reward x location_action x location_action matrix, 49 x 196 x 196, first dimension is reward
+
+    G = adj * spatial_mask
+    G = F.normalize(G, dim=-1)
+    return G
+
+
+def location_action_optimal_transition_matrix(maze_id):
+    """
+    Generate a location-action transition matrix for a maze using the optimal policy.
+    :param maze_id: identifier for the maze, e.g. 1 for the first maze
+    :type maze_id: int
+    :return: a state-action transition matrix of shape (n_s, n_sa, n_sa) where n_sa is the number of state-action pairs (n_s * 4),
+    where n_s is the number of states (nx * ny). The index i corresponds to location action (s, a) where
+    a = i // ns and s = i % ns. (x, y) = (s // ny, s % ny).
+    The four actions (0, 1, 2, 3) correspond to (right, up, left, down).
+    """
+    optimal_policy = torch.tensor(load_optimal_behaviour(maze_id))
+    adj = location_action_adjacency_matrix_from_maze_id(maze_id)
+    optimal_policy_sa = optimal_policy.transpose(-2, -1).flatten(-2, -1)[:, None, :].repeat(1, 196, 1)
+    optimal_policy_sa = optimal_policy_sa * adj.unsqueeze(0)
+    return optimal_policy_sa

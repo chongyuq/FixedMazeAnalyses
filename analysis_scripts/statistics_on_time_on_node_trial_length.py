@@ -1,14 +1,14 @@
-import json
 import torch
 import numpy as np
 from pathlib import Path
+import os
 
 from datahelper.load_data import get_data
 import pandas as pd
 
 
 def get_time():
-    maze_behaviour = get_data(agent_type='mice_behaviour', maze_number=None)
+    maze_behaviour = get_data(dataset='mice_behaviour', maze_number=None)
     time_at_node = maze_behaviour.time.shift(-1).to_numpy() - maze_behaviour.time.to_numpy()
     time_at_node[time_at_node < 0] = float('nan')
     maze_behaviour['time_at_node'] = time_at_node
@@ -74,7 +74,7 @@ def get_trial_info():
     # trial length
     # session length
     # iti length
-    maze_behaviour = get_data(agent_type='mice_behaviour', maze_number=None)
+    maze_behaviour = get_data(dataset='mice_behaviour', maze_number=None)
     phase_end = maze_behaviour.trial_phase != maze_behaviour.trial_phase.shift(-1)
     maze_behaviour['phase_end'] = phase_end
     subject_IDs = maze_behaviour.subject_ID.unique().tolist()
@@ -129,5 +129,6 @@ if __name__ == "__main__":
     root_dir = Path(__file__).parents[1]
 
     # Save DataFrames to CSV files
+    os.makedirs(f'{root_dir}/data/behaviour/summary_statistics', exist_ok=True)
     df_time.to_csv(f'{root_dir}/data/behaviour/summary_statistics/time_at_node.csv', index=False)
     df_steps.to_csv(f'{root_dir}/data/behaviour/summary_statistics/trial_session_ITI_steps.csv', index=False)
