@@ -21,3 +21,27 @@ REGRESSOR_ALIASES = {
     'forward': 'fwd',
     'reverse': 'rev'
 }
+
+REGRESSOR_PLOT_NAMES = {
+    'vector': 'vector',
+    'optimal': 'optimal',
+    'pca_route': 'route',
+    'pca_route_planning': 'route planning',
+    'hmm_route': 'route',
+    'hmm_route_planning': 'route planning',
+    'habit': 'habit',
+    'forward': 'forward',
+    'reverse': 'reverse'
+}
+
+REGRESSOR_COLOURS = {
+    'vector': '#EE220C',
+    'optimal': '#0076BA',
+    'pca_route': '#1DB100',
+    'pca_route_planning': '#64389F',
+    'hmm_route': '#1DB100',
+    'hmm_route_planning': '#64389F',
+    'habit': '#568203',
+    'forward': '#D41876',
+    'reverse': '#5E5E5E'
+}

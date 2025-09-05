@@ -84,17 +84,17 @@ def run_regression_pipeline(
 
 
 # if __name__ == "__main__":
-#     # Example usage
+    # Example usage
 #     test = run_regression_pipeline(
 #         root_dir = Path(__file__).parents[2],
 #         maze_number = 1,
 #         dataset = "mice_behaviour",
-#         regressors = ["vector", "optimal", "forward", "reverse"],
+#         regressors = ["vector", "optimal", "pca_route", "pca_route_planning", "habit", "forward", "reverse"], #
 #         bootstraps = None,
 #         save_model = False
 #     )
 #
-#     import matplotlib.pyplot as plt
+# #     import matplotlib.pyplot as plt
 #     print(test['coefs'].shape)  # (n_folds, n_bootstraps, n_models, n_regressors)
 #     print(test['neg_log_likelihoods'].shape) # (n_folds, n_bootstraps, n_models)
 #     print(test['accuracies'].shape) # (n_folds, n_bootstraps, n_models)

@@ -238,8 +238,8 @@ def generate_vector_optimal_straight_agent(maze_number, agent_number, vector_coe
                              reward_time_at_node_distribution=reward_time_at_node_distribution,
                              straight_coef=4)
 
-    trajectories, rewards, times, trials, trial_phases, starts = sim_data['trajectories'], sim_data['rewards'], sim_data['times'], \
-                                                                 sim_data['trials'], sim_data['trial_phases'], sim_data['starts']
+    trajectories, rewards, times, trials, trial_phases, starts, day_on_maze = sim_data['trajectories'], sim_data['rewards'], sim_data['times'], \
+                                                                              sim_data['trials'], sim_data['trial_phases'], sim_data['starts'], sim_data['day_on_maze']
 
 
     # data to save
@@ -268,6 +268,7 @@ def generate_vector_optimal_straight_agent(maze_number, agent_number, vector_coe
         'agent_type': 'non_markovian_agents',
         'subject_ID': agent_number,
         'trial': trials,
+        'day_on_maze': day_on_maze,
         'time': times,
         'trial_phase': trial_phases,
         'reward_idx': rewards,
@@ -316,8 +317,8 @@ def generate_vector_optimal_agent(maze_number, agent_number, vector_coef_distrib
                              reward_time_at_node_distribution=reward_time_at_node_distribution,
                              straight_coef=4)
 
-    trajectories, rewards, times, trials, trial_phases, starts = sim_data['trajectories'], sim_data['rewards'], sim_data['times'], \
-                                                                 sim_data['trials'], sim_data['trial_phases'], sim_data['starts']
+    trajectories, rewards, times, trials, trial_phases, starts, day_on_maze = sim_data['trajectories'], sim_data['rewards'], sim_data['times'], \
+                                                                              sim_data['trials'], sim_data['trial_phases'], sim_data['starts'], sim_data['day_on_maze']
 
 
     # data to save
@@ -345,6 +346,7 @@ def generate_vector_optimal_agent(maze_number, agent_number, vector_coef_distrib
         'agent_type': 'markovian_agents',
         'subject_ID': agent_number,
         'trial': trials,
+        'day_on_maze': day_on_maze,
         'time': times,
         'trial_phase': trial_phases,
         'reward_idx': rewards,
@@ -424,8 +426,8 @@ def generate_lmdp_agent(maze_number, agent_number,
                              ITI_time_at_node_distribution=ITI_time_at_node_distribution,
                              reward_time_at_node_distribution=reward_time_at_node_distribution,
                              straight_coef=straight_coef)
-    trajectories, rewards, times, trials, trial_phases, starts = sim_data['trajectories'], sim_data['rewards'], sim_data['times'], \
-                                                                 sim_data['trials'], sim_data['trial_phases'], sim_data['starts']
+    trajectories, rewards, times, trials, trial_phases, starts, day_on_maze = sim_data['trajectories'], sim_data['rewards'], sim_data['times'], \
+                                                                              sim_data['trials'], sim_data['trial_phases'], sim_data['starts'], sim_data['day_on_maze']
 
 
     # data to save
@@ -461,6 +463,7 @@ def generate_lmdp_agent(maze_number, agent_number,
         'agent_type': 'lmdp_agents',
         'subject_ID': agent_number,
         'trial': trials,
+        'day_on_maze': day_on_maze,
         'time': times,
         'trial_phase': trial_phases,
         'reward_idx': rewards,
@@ -538,8 +541,8 @@ def generate_dijkstra_agent(maze_number, agent_number,
                              ITI_time_at_node_distribution=ITI_time_at_node_distribution,
                              reward_time_at_node_distribution=reward_time_at_node_distribution,
                              straight_coef=straight_coef)
-    trajectories, rewards, times, trials, trial_phases, starts = sim_data['trajectories'], sim_data['rewards'], sim_data['times'], \
-                                                                 sim_data['trials'], sim_data['trial_phases'], sim_data['starts']
+    trajectories, rewards, times, trials, trial_phases, starts, day_on_maze = sim_data['trajectories'], sim_data['rewards'], sim_data['times'], \
+                                                                              sim_data['trials'], sim_data['trial_phases'], sim_data['starts'], sim_data['day_on_maze']
 
 
     # data to save
@@ -573,6 +576,7 @@ def generate_dijkstra_agent(maze_number, agent_number,
         'agent_type': 'dijkstra_agents',
         'subject_ID': agent_number,
         'trial': trials,
+        'day_on_maze': day_on_maze,
         'time': times,
         'trial_phase': trial_phases,
         'reward_idx': rewards,
@@ -671,11 +675,17 @@ def simulate_data(planner, maze_number, simulated_steps, navigation_time_at_node
         start = s_prev + (((a_prev % 2) == 0) * 7 + ((a_prev % 2) == 1) * 1) * \
                 ((a_prev <= 1) * 1 + (a_prev > 1) * -1)
         prev_reward = finish
+
+    min_trial, max_trial = min(trials), max(trials)
+    trial_split_days = np.array_split(np.arange(min_trial, max_trial + 1, 1), 11)  # split trials into 11 days
+    trial_day_map = {trial: day + 1 for day, trials_in_day in enumerate(trial_split_days) for trial in trials_in_day}
+    day_on_maze = [trial_day_map[trial] for trial in trials]
     return {
         'trajectories': trajectories,
         'rewards': rewards,
         'times': times,
         'trials': trials,
+        'day_on_maze': day_on_maze,
         'trial_phases': trial_phases,
         'starts': starts
     }

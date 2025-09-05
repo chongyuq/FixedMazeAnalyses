@@ -46,7 +46,7 @@ def upload_behaviour(overwrite: bool = True):
     """
     collection_name = COMMON_FIELDS['mice_behaviour']['collection']
     root_dir = Path(__file__).parents[2]
-    file_path = f'{root_dir}/data/behaviour/processed_behavioural_data.csv'
+    file_path = f'{root_dir}/data/behaviour/behaviour.csv'
     if os.path.exists(file_path):
         df = pd.read_csv(file_path)
         upload_data(df, collection_name, overwrite)
