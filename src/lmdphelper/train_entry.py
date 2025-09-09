@@ -97,11 +97,11 @@ def run_once(args, report_cb=None) -> dict:
         lr=args.lr,
     ).to(device)
 
-    # model.R = torch.nn.Parameter(
-    #     torch.logit(F.normalize(real_routes*(1-1e-12) + 1e-12*(1-real_routes), p=1, dim=-1)).to(device)
-    # )
-    # model.pi = torch.nn.Parameter(torch.logit(torch.ones(args.n_routes + 1).to(device) / (args.n_routes + 1))).to(device)
-    # model.calculate_transition_matrix_and_policies()
+    model.R = torch.nn.Parameter(
+        torch.logit(F.normalize(real_routes*(1-1e-12) + 1e-12*(1-real_routes), p=1, dim=-1)).to(device)
+    )
+    model.pi = torch.nn.Parameter(torch.logit(torch.ones(args.n_routes + 1).to(device) / (args.n_routes + 1))).to(device)
+    model.calculate_transition_matrix_and_policies()
 
     # ----- params + hash
     if args.saving:
@@ -130,7 +130,7 @@ def run_once(args, report_cb=None) -> dict:
     val_hist = []
     best_epoch = -1
     for i in range(args.epochs):
-        log_prob, log_start, ent_a, ent_r, ll = model(x_t, a_t, r_t)
+        log_prob, log_start, ent_a, ent_r, ll, acc = model(x_t, a_t, r_t)
 
         if writer and (i % args.log_every == 0):
             writer.add_scalar("train/log_likelihood", ll, i)
@@ -138,11 +138,13 @@ def run_once(args, report_cb=None) -> dict:
             writer.add_scalar("train/log_start", log_start, i)
             writer.add_scalar("train/entropy_action_loss", ent_a, i)
             writer.add_scalar("train/entropy_route_loss", ent_r, i)
+            writer.add_scalar("train/accuracy", acc, i)
 
         if (i % args.eval_every == 0) or (i == args.epochs - 1):
             with torch.no_grad():
-                log_prob_v, log_start_v = model.E_step(x_v, a_v, r_v)
-            val_metric = float((log_prob_v + log_start_v).item())
+                log_prob_v, log_start_v, accuracy_v = model.E_step(x_v, a_v, r_v)
+            # val_metric = float((log_prob_v + log_start_v).item())
+            val_metric = float(accuracy_v.item())
             val_hist.append(val_metric)
             smoothed = moving_avg(val_hist, args.smooth_k)
             if report_cb is not None:

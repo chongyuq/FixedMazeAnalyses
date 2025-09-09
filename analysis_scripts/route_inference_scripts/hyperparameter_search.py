@@ -15,11 +15,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
 
     # pruning policy
-    ap.add_argument("--min_epochs", type=int, default=2000)
-    ap.add_argument("--max_epochs", type=int, default=5000)
+    ap.add_argument("--min_epochs", type=int, default=300)
+    ap.add_argument("--max_epochs", type=int, default=2000)
     ap.add_argument("--n_startup_trials", type=int, default=6)
     ap.add_argument("--interval_steps", type=int, default=100)
-    ap.add_argument("--timeout", type=int, default=3600*10)  # in seconds
+    ap.add_argument("--timeout", type=int, default=3600*9.5)  # in seconds
 
     # data/ training context
     ap.add_argument("--dataset", type=str, default="lmdp_agents")
@@ -27,6 +27,8 @@ if __name__ == "__main__":
     ap.add_argument("--subject_index", type=int, default=2)
     ap.add_argument("--kfold", type=int, default=None)
     ap.add_argument("--sample_ratio", type=float, default=0.8)
+    ap.add_argument("--n_routes", type=int, default=6)
+    ap.add_argument("--reward_value", type=float, default=2.5)
     ap.add_argument("--action_entropy_param", type=float, default=0.2)
     ap.add_argument("--noise", type=float, default=0.1)
     ap.add_argument("--noise_decay", type=float, default=1)
@@ -47,7 +49,9 @@ if __name__ == "__main__":
         subject_index=args.subject_index,
         kfold=args.kfold,
         sample_ratio=args.sample_ratio,
-        n_routes=7,
+        n_routes=args.n_routes,
+        reward_value=args.reward_value,
+        action_entropy_param=args.action_entropy_param,
         noise=args.noise,
         noise_decay=args.noise_decay,
         lr=args.lr,

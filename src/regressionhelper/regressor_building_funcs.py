@@ -47,7 +47,6 @@ class TrainingDataBuilder:
         self.maze_number = maze_number
         self.regressors = regressors
         self.subject_IDs = load_subject_IDs(dataset)
-        self.bootstraps = len(self.subject_IDs)
         self.optimal, self.habit, self.hmm_routes, self.pca_routes = None, None, None, None
         self.hmm_route_state_dict, self.pca_state_dict = None, None
 

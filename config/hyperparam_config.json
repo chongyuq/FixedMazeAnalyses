@@ -1,0 +1,27 @@
+{
+  "min_epochs": 300,
+  "max_epochs": 2000,
+  "n_startup_trials": 10,
+  "interval_steps": 100,
+  "timeout": 34200,
+
+  "dataset": "lmdp_agents",
+  "maze_number": 2,
+  "subject_index": 2,
+
+  "kfold": null,
+  "sample_ratio": 0.8,
+
+  "n_routes": 6,
+  "reward_value": 2.5,
+  "action_entropy_param": 0.2,
+  "noise": 0.1,
+  "noise_decay": 1,
+
+  "lr": 0.05,
+  "eval_every": 10,
+  "smooth_k": 5,
+  "log_every": 10,
+  "saving": 0,
+  "tensorboard": 0
+}

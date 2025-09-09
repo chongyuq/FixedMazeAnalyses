@@ -16,7 +16,8 @@ def objective(trial: optuna.Trial, fixed):
         n_routes= fixed.n_routes, #trial.suggest_int("n_routes", 5, 8),
         cognitive_constant=trial.suggest_float("cognitive_constant", 10, 30),
         action_cost=trial.suggest_float("action_cost", 0.1, 0.2),
-        reward_value=trial.suggest_float("reward_value", 1, 3),
+        # reward_value=trial.suggest_float("reward_value", 1, 3),
+        reward_value=fixed.reward_value,
         route_entropy_param=trial.suggest_float("route_entropy_param", 0.0, 0.2),
         action_entropy_param=fixed.action_entropy_param,
         # action_entropy_param=trial.suggest_float("action_entropy_param", 0.05, 0.5),
@@ -39,6 +40,8 @@ def objective(trial: optuna.Trial, fixed):
     if fixed.saving:
         out_dir = f"{local_root}/trial_{trial.number:05d}"
         os.makedirs(out_dir, exist_ok=True)
+    else:
+        out_dir = None
 
     # --- run training ---
     def report_cb(step, value):
