@@ -7,7 +7,7 @@ from tqdm import tqdm
 if __name__ == "__main__":
     datasets = COMMON_FIELDS.keys()
     maze_numbers = [1, 2, 3]
-    nmf = False
+    nmf = True
 
     # Compute total steps for tqdm
     total = 0
@@ -51,4 +51,4 @@ if __name__ == "__main__":
                         )
                         pbar.update(1)
 
-    print("All principal components generated and saved successfully.")
+    print("All NMFs generated and saved successfully.")

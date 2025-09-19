@@ -1,6 +1,7 @@
 import torch
 from pathlib import Path
 from tqdm import tqdm
+import os
 
 from regressionhelper.habit_funcs import generate_habits
 from datahelper.fields import COMMON_FIELDS
@@ -10,6 +11,7 @@ from datahelper.load_data import load_subject_IDs
 if __name__ == "__main__":
     root_dir = Path(__file__).parents[1]
     datasets = COMMON_FIELDS.keys()
+    # datasets = ['non_markovian_agents']
     maze_numbers = [1, 2, 3]
 
     total = 0
@@ -35,5 +37,6 @@ if __name__ == "__main__":
                         )
                         pbar.update(1)
             # Save habits for the dataset
+            os.makedirs(f'{root_dir}/habits', exist_ok=True)
             torch.save(habits_all, f'{root_dir}/habits/habits_{dataset}.pt')
     print("All habits generated and saved successfully.")

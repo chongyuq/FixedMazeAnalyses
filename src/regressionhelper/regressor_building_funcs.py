@@ -1,4 +1,4 @@
-from datahelper.load_data import load_optimal_behaviour, load_subject_IDs, get_data, load_all_kfold_habits_for_dataset, load_all_kfold_pcs_for_dataset
+from datahelper.load_data import load_optimal_behaviour, load_subject_IDs, get_data, load_all_kfold_habits_for_dataset, load_all_kfold_pcs_for_dataset, load_all_kfold_nmfs_for_dataset
 from datahelper.fields import COMMON_FIELDS
 
 from mazehelper.mazes_info import POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID
@@ -47,8 +47,8 @@ class TrainingDataBuilder:
         self.maze_number = maze_number
         self.regressors = regressors
         self.subject_IDs = load_subject_IDs(dataset)
-        self.optimal, self.habit, self.hmm_routes, self.pca_routes = None, None, None, None
-        self.hmm_route_state_dict, self.pca_state_dict = None, None
+        self.optimal, self.habit, self.hmm_routes, self.pca_routes, self.nmf_routes = None, None, None, None, None
+        self.hmm_route_state_dict, self.pca_state_dict, self.nmf_state_dict = None, None, None
 
         if 'optimal' in regressors:
             self.optimal = load_optimal_behaviour(maze_number) # shape: 49 x 49 x 4, or reward x location x action
@@ -58,7 +58,7 @@ class TrainingDataBuilder:
             self.habit = F.normalize(self.habit, dim=-1) # normalize over actions
         # if 'hmm_route' or 'hmm_route_planning' in regressors:
         #     self.hmm_route_state_dict = load_hmm_route_state_dicts(maze_number, dataset=dataset, folds=True)
-        if 'PCA_route' or 'PCA_route_planning' in regressors:
+        if 'pca_route' or 'pca_route_planning' in regressors:
             pcs_and_variances = load_all_kfold_pcs_for_dataset(dataset=dataset)  # shape: (3, n_subjects, 13, 196, 196)
             self.pcs = pcs_and_variances['PCs']  # shape: (3, n_subjects, 13, 196, 196)
             self.pcs = self.pcs[maze_number - 1, ..., :3]  # shape: (n_subjects, 13, 196, 3)
@@ -68,6 +68,20 @@ class TrainingDataBuilder:
             self.pca_state_dict = {self.subject_IDs[i]:
                                        [OrderedDict({'pi': torch.ones(7),
                                                      'R': torch.logit(self.pca_routes[i, k].t() * (1-1e-11) + 1e-11)})
+                                        for k in range(13)]
+                                   for i in range(len(self.subject_IDs))}
+        if 'nmf_route' or 'nmf_route_planning' in regressors:
+            nmfs_and_variances = load_all_kfold_nmfs_for_dataset(
+                dataset=dataset)  # shape: (3, n_subjects, 13, 196, 196)
+            self.nmfs = nmfs_and_variances['NMFs']  # shape: (3, n_subjects, 13, 196, 196)
+            self.nmfs = self.nmfs[maze_number - 1]  # shape: (n_subjects, 13, 196, 3)
+            self.nmf_routes = F.normalize(self.nmfs, p=1, dim=-2)  # shape: (n_subjects, 13, 196, 6)
+            # convert to state dict where the values are in the form of logit probabilities
+            # there is an assumption that all routes are equally likely, so the prior is uniform, including the non-route option
+            self.nmf_state_dict = {self.subject_IDs[i]:
+                                       [OrderedDict({'pi': torch.ones(7),
+                                                     'R': torch.logit(
+                                                         self.nmf_routes[i, k].t() * (1 - 1e-11) + 1e-11)})
                                         for k in range(13)]
                                    for i in range(len(self.subject_IDs))}
         self.n_sessions = get_data(
@@ -83,6 +97,7 @@ class TrainingDataBuilder:
                 maze_number=self.maze_number,
                 subject_ID=subject,
                 pca_state_dict=self.pca_state_dict[subject] if self.pca_state_dict is not None else None,
+                nmf_state_dict=self.nmf_state_dict[subject] if self.nmf_state_dict is not None else None,
                 hmm_state_dict=self.hmm_route_state_dict,
                 habit=self.habit[self.subject_IDs.index(subject)] if self.habit is not None else None,
                 optimal=self.optimal,
@@ -255,6 +270,7 @@ class SubjectProcessor:
                  maze_number,
                  subject_ID,
                  pca_state_dict=None,
+                 nmf_state_dict=None,
                  hmm_state_dict=None,
                  habit=None,
                  optimal=None,
@@ -273,6 +289,8 @@ class SubjectProcessor:
         :type subject_ID: str
         :param pca_state_dict: The state dictionary for the PCA model, if available.
         :type pca_state_dict: dict, optional
+        :param nmf_state_dict: The state dictionary for the NMF model, if available.
+        :type nmf_state_dict: dict, optional
         :param hmm_state_dict: The state dictionary for the HMM model, if available.
         :type hmm_state_dict: dict, optional
         :param habit: The habit data for the subject, if available. Should be a tensor of shape (n_folds, 49, 4) where n_folds is the number of folds (or days - 1).
@@ -291,6 +309,7 @@ class SubjectProcessor:
         self.maze_number = maze_number
         self.subject_ID = subject_ID
         self.pca_state_dict = pca_state_dict
+        self.nmf_state_dict = nmf_state_dict
         self.hmm_state_dict = hmm_state_dict
         self.habit = habit  # shape n_folds (or n_days -1) x 49 x 4
         self.optimal = optimal  # shape: 49 x 49 x 4, or reward x location x action
@@ -399,6 +418,24 @@ class SubjectProcessor:
             self.pca_model.calculate_transition_matrix_and_policies()
             self.pca_model.eval()
             self.pca_routes = self.pca_model.state_dist_given_route
+        if self.nmf_state_dict is not None:
+            self.nmf_model = LowRankLMDP_HMM(
+                n_locs=49,
+                n_acts_per_loc=4,
+                n_routes=self.nmf_state_dict[kfold]['R'].shape[0],
+                cognitive_constant=25,
+                action_cost=0.12,
+                reward_value=1,
+                route_entropy_param=0,
+                action_entropy_param=0,
+                noise=0,
+                noise_decay=0,
+                adjacency_matrix=location_action_adjacency_matrix_from_maze_id(self.maze_number)
+            )
+            self.nmf_model.load_state_dict(self.nmf_state_dict[kfold])
+            self.nmf_model.calculate_transition_matrix_and_policies()
+            self.nmf_model.eval()
+            self.nmf_routes = self.nmf_model.state_dist_given_route
         if self.hmm_state_dict is not None:
             self.hmm_model = LowRankLMDP_HMM(
                 n_locs=49,
@@ -429,7 +466,7 @@ class SubjectProcessor:
         :param a_p: previous action indices tensor
         :return: None, but updates the class attributes with the calculated regressors
         """
-        if 'pca_route' in self.regressors or 'pca_route_planning' in self.regressors:
+        if 'pca_route' in self.regressors or 'pca_route_planning' in self.regressors or 'nmf_route' in self.regressors or 'nmf_route_planning' in self.regressors:
             pca_route_predict = self.pca_model._forward_algorithm_no_parallel(location=x, action=a, reward=r)
             pca_route_predict = F.normalize(pca_route_predict, dim=-1)
             # need to use the previous route prediction in the regression, as the current behavioural step was
@@ -445,6 +482,21 @@ class SubjectProcessor:
                                            pca_route_predict[1:]).sum(dim=(1, -1))
             self.pca_route_planning_regressor = torch.cat([torch.zeros_like(pca_route_planning_regressor[0:1]), pca_route_planning_regressor], dim=0)
             self.pca_route_planning_regressor = F.normalize(self.pca_route_planning_regressor, dim=-1)
+        if 'nmf_route' in self.regressors or 'nmf_route_planning' in self.regressors:
+            nmf_route_predict = self.nmf_model._forward_algorithm_no_parallel(location=x, action=a, reward=r)
+            nmf_route_predict = F.normalize(nmf_route_predict, dim=-1)
+            # need to use the previous route prediction in the regression, as the current behavioural step was
+            # used to find the route
+            nmf_route_predict = torch.cat([torch.zeros(1, nmf_route_predict.shape[1]), nmf_route_predict[:-1]], dim=0)
+            self.nmf_route_regressor = F.normalize(torch.einsum('bj, jab->ba', nmf_route_predict, self.nmf_routes.reshape(-1, 4, 49)[..., x]), dim=-1)
+            # here note we use the previous route distribution
+            # with the previous location and action - which gives the current location
+            # with the current reward to calculate the route planning regressor
+            nmf_route_planning_regressor = torch.einsum('bsaij, bi -> bsaj',
+                                           self.nmf_model.policy[r[1:], x_p[1:], a_p[1:]],
+                                           nmf_route_predict[1:]).sum(dim=(1, -1))
+            self.nmf_route_planning_regressor = torch.cat([torch.zeros_like(nmf_route_planning_regressor[0:1]), nmf_route_planning_regressor], dim=0)
+            self.nmf_route_planning_regressor = F.normalize(self.nmf_route_planning_regressor, dim=-1)
         if 'hmm_route' in self.regressors or 'hmm_route_planning' in self.regressors:
             hmm_route_predict = self.hmm_model._forward_algorithm_no_parallel(location=x, action=a, reward=r)
             hmm_route_predict = F.normalize(hmm_route_predict, dim=-1)

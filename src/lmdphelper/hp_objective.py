@@ -14,8 +14,8 @@ def objective(trial: optuna.Trial, fixed):
         sample_ratio=fixed.sample_ratio,
 
         n_routes= fixed.n_routes, #trial.suggest_int("n_routes", 5, 8),
-        cognitive_constant=trial.suggest_float("cognitive_constant", 10, 30),
-        action_cost=trial.suggest_float("action_cost", 0.1, 0.2),
+        cognitive_constant=trial.suggest_float("cognitive_constant", 8, 32),
+        action_cost=trial.suggest_float("action_cost", 0.07, 0.23),
         # reward_value=trial.suggest_float("reward_value", 1, 3),
         reward_value=fixed.reward_value,
         route_entropy_param=trial.suggest_float("route_entropy_param", 0.0, 0.2),

@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Literal
 
 import torch
 import torch.nn.functional as F
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, NMF
 
 
 def compute_ema(
@@ -44,7 +44,7 @@ def compute_ema(
         # Discrete-time EMA with alpha
         out[0] = x[0]
         for i in range(1, n):
-            out[i] = (1.0 - alpha) * out[i - 1] + x[i]
+            out[i] = torch.exp(-alpha) * out[i - 1] + x[i]
     else:
         if t.shape[0] != n:
             raise ValueError("`t` must have the same length as `x` (n).")
@@ -157,6 +157,27 @@ def _fit_pca_rows(
     e = torch.from_numpy(model.explained_variance_ratio_).to(device=device, dtype=torch.float32)
     return v, e
 
+def _fit_nmf_rows(
+    x: torch.Tensor,
+    n_components: Optional[int] = 6,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Fit PCA on rows of x using scikit-learn and return (components, explained_variance_ratio).
+
+    Returns:
+        v: (d, k) principal axes as columns (same as sklearn components_.T)
+        e: (k,) explained variance ratio
+    """
+    device = x.device
+    x_np = x.detach().cpu().numpy()
+
+    model = NMF(n_components=n_components)  # default: all components up to min(n_samples, n_features)
+    model.fit(x_np)
+    v = torch.from_numpy(model.components_.T).to(device=device, dtype=torch.float32)
+    # e = torch.from_numpy(model.explained_variance_ratio_).to(device=device, dtype=torch.float32)
+
+    return v, None # NMF does not have explained_variance_ratio_
+
 
 def fit_decay_pca_basis(
     idx: torch.Tensor,
@@ -167,7 +188,8 @@ def fit_decay_pca_basis(
     normalize: bool = True,
     history: bool = True,
     future: bool = True,
-    combine: Literal["stack", "sum"] = "stack"
+    combine: Literal["stack", "sum"] = "stack",
+    nmf: bool = False,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Compute (history+future) exponentially-decayed one-hot features and run PCA.
@@ -194,9 +216,11 @@ def fit_decay_pca_basis(
         n = idx.shape[0]
         feats = feats.reshape(2, n, tot_obs).sum(dim=0)
         # as both features contain the present, we need to zero one of them to avoid doubling the present
-        feats[0, idx] -= 1.0
+        feats[torch.arange(len(idx)), idx] -= 1.0
     if normalize:
         feats = F.normalize(feats, p=2, dim=-1)  # L2 normalize rows, ensuring each row has magnitude 1
+    if nmf:
+        return _fit_nmf_rows(feats, n_components=6)
     return _fit_pca_rows(feats)
 
 

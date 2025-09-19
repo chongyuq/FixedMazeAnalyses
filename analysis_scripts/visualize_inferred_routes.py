@@ -8,9 +8,9 @@ from mazehelper.plotting_functions import plot_policy_max
 
 if __name__ == "__main__":
     root_dir = Path(__file__).parents[1]
-    config_hash = "ed43d6d5"
-    maze_number = 2
-    subject_ID = 3
+    config_hash = "9079a8dd"
+    maze_number = 1
+    subject_ID = 6
     # load routes
 
     tmp = torch.load(f'{root_dir}/inferred_routes/lowrank_lmdp_inferred/temp/lmdp_agents/{subject_ID}/Maze{maze_number}/best_{config_hash}.pt', map_location=torch.device('cpu'))
@@ -21,7 +21,6 @@ if __name__ == "__main__":
         plot_policy_max(
             routes[i].reshape(4, 49).t(),
             maze_number=maze_number,
-            scale=10
         )
         plt.title(f"Route {i+1} (prior: {routes_prior[i]:.2f})")
         plt.show()

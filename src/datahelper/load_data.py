@@ -121,6 +121,43 @@ def load_all_kfold_pcs_for_dataset(dataset: str = "mice_behaviour", history=True
     return {'variances': variances, 'PCs': PCs}
 
 
+def load_all_kfold_nmfs_for_dataset(dataset: str = "mice_behaviour", history=True, future=True, combine='sum', normalize=True, alpha=0.1):
+    """
+    Loads all precomputed principal components (PCs) for a given dataset.
+    :param dataset: The dataset type, e.g., 'mice_behaviour', 'lmdp_agents', etc.
+    :param history: Whether to include historical data in the PCs.
+    :param future: Whether to include future data in the PCs.
+    :param combine: Method to combine history and future ('sum' or 'concat').
+    :param normalize: Whether to normalize the data before PCA.
+    :param alpha: Decay parameter for exponential weighting.
+    :return: A dictionary containing:
+        - 'variances': A tensor of shape (3, num_subjects, 13) containing the explained variances for each maze, subject, and kfold.
+        - 'PCs': A tensor of shape (3, num_subjects, 13, 196, 196) containing the principal components for each maze, subject, and kfold.
+    The first dimension corresponds to the maze number (1, 2, 3).
+    The second dimension corresponds to different subjects, ordered by load_subject_IDs().
+    The third dimension corresponds to different kfolds (0-12).
+    The fourth dimension corresponds to the 196 possible (position, action) pairs.
+    The fifth dimension corresponds to the 196 principal components.
+    196 = 49 positions * 4 actions.
+    49 positions correspond to a 7x7 grid world.
+    4 actions correspond to up, down, left, right.
+    """
+    assert dataset in COMMON_FIELDS, f"Dataset {dataset} is not recognized."
+    root_dir = Path(__file__).parents[2]
+    base_dir = f'{root_dir}/inferred_routes/nmf_inferred/history_{history}_future_{future}_combine_{combine}_normalize_{normalize}_alpha_{alpha}/{dataset}'
+    variances, NMFs = torch.ones(3, 6, 13, 196), torch.zeros(3, 6, 13, 196, 6)  # (maze_number, subject_ID, kfold, n_obs=196, n_pcs=6)
+    subject_IDs = load_subject_IDs(dataset)
+    for subject_ID in subject_IDs:
+        for maze_number in range(1, 4):
+            for kfold in range(13):
+                filename = f'{base_dir}/{subject_ID}/Maze{maze_number}_NMFs_kfold_{kfold}.pt'
+                if os.path.exists(filename):
+                    nmfs = torch.load(filename)
+                    NMFs[maze_number - 1, subject_IDs.index(subject_ID), kfold] = nmfs['nmfs']
+                    # variances[maze_number - 1, subject_IDs.index(subject_ID), kfold] = pcs['explained_variance']
+    return {'variances': None, 'NMFs': NMFs}
+
+
 def load_pcs(dataset: str = "mice_behaviour", subject_ID: str = "m2", maze_number: int = 1, kfold: Optional[int] = None, history=True, future=True, combine='sum', normalize=True, alpha=0.1):
     """
     Loads precomputed principal components (PCs) for a given dataset, subject ID, and maze number.

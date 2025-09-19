@@ -211,3 +211,48 @@ def location_action_optimal_transition_matrix(maze_id):
     optimal_policy_sa = optimal_policy.transpose(-2, -1).flatten(-2, -1)[:, None, :].repeat(1, 196, 1)
     optimal_policy_sa = optimal_policy_sa * adj.unsqueeze(0)
     return optimal_policy_sa
+
+
+def location_2_action_optimal_transition_matrix(maze_id):
+    """
+    Generate a location to action transition matrix for a maze using the optimal policy.
+    :param maze_id: identifier for the maze, e.g. 1 for the first maze
+    :type maze_id: int
+    :return: a location to action transition matrix of shape (n_s, n_a) where n_s is the number of states (nx * ny).
+    Index i for state s corresponds to (x, y) where x = i // ny and y = i % ny.
+    The four actions (0, 1, 2, 3) correspond to (right, up, left, down).
+    :rtype: torch.Tensor
+    """
+    optimal_policy = torch.tensor(load_optimal_behaviour(maze_id))
+    return optimal_policy
+
+
+def location_2_action_vector_transition_matrix(maze_id, inverse_temp=1):
+    """
+    Generate a location to action transition matrix for a maze with a preference for actions that move towards the goal using vector-based navigation.
+    The preference is controlled by the inverse temperature parameter, with higher values leading to a stronger preference.
+    :param maze_id: identifier for the maze, e.g. 1 for the first maze
+    :type maze_id: int
+    :param inverse_temp: inverse temperature parameter, higher values lead to a stronger preference for actions that move towards the goal
+    :type inverse_temp: float
+    :return: a location to action transition matrix of shape (n_s, n_a)
+    where n_s is the number of states (nx * ny). Index i for state s corresponds to (x, y) where x = i // ny and y = i % ny.
+    The four actions (0, 1, 2, 3) correspond to (right, up, left, down).
+    :rtype: torch.Tensor
+    """
+    # get the state action transition matrix without dead ends
+    # ------------------------------------------------------------------------------------------------------------------
+    spatial_mask = torch.tensor(POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID[maze_id]).reshape(4, 49).t()  # what are the possible actions in the maze
+
+    x = torch.arange(49)[:, None] // 7 - torch.arange(49)[None, :] // 7  # difference in x between all possible positions
+    y = torch.arange(49)[:, None] % 7 - torch.arange(49)[None, :] % 7  # difference in y between all possible positions
+
+    cos_theta = x / torch.sqrt(x ** 2 + y ** 2 + 1e-12)  # cosine of the angle between the two points 49 x 49
+    sin_theta = y / torch.sqrt(x ** 2 + y ** 2 + 1e-12)  # sine of the angle between the two points 49 x 49
+
+    policy = torch.stack([cos_theta, sin_theta,-cos_theta, -sin_theta], dim=-1)  # 49 x 49 x 4
+    policy = F.softmax(policy * inverse_temp, dim=-1)  # softmax the spatial mask, so all actions sum to 1
+
+    policy = policy * spatial_mask
+    policy = F.normalize(policy, p=1, dim=-1)
+    return policy

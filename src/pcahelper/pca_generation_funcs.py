@@ -5,7 +5,7 @@ from datahelper.load_data import get_data
 from pcahelper.pca_exponential_funcs import fit_decay_pca_basis
 
 
-def generate_PCs(dataset, maze_number, subject_ID, kfold: int=None, history=True, future=True, combine='sum', normalize=True, alpha=0.1):
+def generate_PCs(dataset, maze_number, subject_ID, kfold: int=None, history=True, future=True, combine='sum', normalize=True, alpha=0.1, nmf=False):
     """
     Generates principal components for the specified dataset, maze number, and subject ID.
     :param dataset: The dataset to use (e.g., 'mice_behaviour', 'lmdp_agents', etc.).
@@ -38,12 +38,13 @@ def generate_PCs(dataset, maze_number, subject_ID, kfold: int=None, history=True
         normalize=normalize,
         history=history,
         future=future,
-        combine=combine
+        combine=combine,
+        nmf=nmf
     )
     return pcs, explained_variance
 
 
-def generate_and_save_PCs(dataset, maze_number, subject_ID, kfold: int=None, history=True, future=True, combine='sum', normalize=True, alpha=0.1):
+def generate_and_save_PCs(dataset, maze_number, subject_ID, kfold: int=None, history=True, future=True, combine='sum', normalize=True, alpha=0.1, nmf=False):
     """
     Saves the principal components to a specified directory.
     :param pcs: The principal components to save.
@@ -53,14 +54,17 @@ def generate_and_save_PCs(dataset, maze_number, subject_ID, kfold: int=None, his
     :param subject_ID: The subject ID used to filter the data.
     :param kfold: Optional k-fold cross-validation index.
     """
-    pcs, explained_variance = generate_PCs(dataset, maze_number, subject_ID, kfold, history, future, combine, normalize, alpha)
+    pcs, explained_variance = generate_PCs(dataset, maze_number, subject_ID, kfold, history, future, combine, normalize, alpha, nmf=nmf)
     root_dir = Path(__file__).parents[2]
-    base_dir = f'{root_dir}/inferred_routes/pca_inferred/history_{history}_future_{future}_combine_{combine}_normalize_{normalize}_alpha_{alpha}/{dataset}/{subject_ID}'
-    os.makedirs(base_dir, exist_ok=True)
-    if kfold is not None:
-        filename = f'{base_dir}/Maze{maze_number}_PCs_kfold_{kfold}.pt'
+    if nmf:
+        base_dir = f'{root_dir}/inferred_routes/nmf_inferred/history_{history}_future_{future}_combine_{combine}_normalize_{normalize}_alpha_{alpha}/{dataset}/{subject_ID}'
     else:
-        filename = f'{base_dir}/Maze{maze_number}_PCs.pt'
-    torch.save({'pcs': pcs, 'explained_variance': explained_variance}, filename)
-    print(f'Saved PCs to {filename}')
+        base_dir = f'{root_dir}/inferred_routes/pca_inferred/history_{history}_future_{future}_combine_{combine}_normalize_{normalize}_alpha_{alpha}/{dataset}/{subject_ID}'
+    os.makedirs(base_dir, exist_ok=True)
+    kfold_suffix = f"_kfold_{kfold}" if kfold is not None else ""
+    PC_suffix = "_NMFs" if nmf else "_PCs"
+    component_name = 'nmfs' if nmf else 'pcs'
+    filename = f"{base_dir}/Maze{maze_number}{PC_suffix}{kfold_suffix}.pt"
+    torch.save({component_name: pcs, 'explained_variance': explained_variance}, filename)
+    print(f'Saved {PC_suffix[1:]} to {filename}')
     return

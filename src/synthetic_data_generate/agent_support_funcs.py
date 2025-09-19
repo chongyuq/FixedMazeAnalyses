@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
+import torch.nn.functional as F
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
 
 from mazehelper.mazes_info import POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID
 from mazehelper.transition_matrix_functions import location_action_vector_transition_matrix, \
-    location_action_optimal_transition_matrix, location_action_straightish_transition_matrix
+    location_action_optimal_transition_matrix, location_action_straightish_transition_matrix, \
+    location_2_action_vector_transition_matrix, location_2_action_optimal_transition_matrix
 
 
 class DijkstraRoutePlanner:
@@ -193,8 +195,89 @@ class VectorOptimalForwardPlanner(nn.Module):
         return trajectory
 
 
+class VectorOptimalExponentialActionPlanner(nn.Module):
+    def __init__(self, maze_number: int, vector_coef: float, optimal_coef: float, straight_coef: float, inverse_temp: float = 1.0, alpha: float = 0.2):
+        super().__init__()
+        self.maze_number = maze_number
+        self.vector_coef = vector_coef / (vector_coef + optimal_coef + straight_coef)
+        self.optimal_coef = optimal_coef / (vector_coef + optimal_coef + straight_coef)
+        self.straight_coef = straight_coef / (vector_coef + optimal_coef + straight_coef)
 
+        self.inverse_temp = inverse_temp
+        self.alpha = torch.tensor(alpha)
 
+        self.vector_matrix = location_2_action_vector_transition_matrix(maze_id=maze_number, inverse_temp=inverse_temp)
+        self.optimal_matrix = location_2_action_optimal_transition_matrix(maze_id=maze_number)
+        self.T_no_straight = self.vector_matrix * vector_coef + self.optimal_matrix * optimal_coef
+        # shape of self.T is 49 x 49 x 4 where T[i, j, k] is the probability of taking action k from location j when the reward is at location i
 
+        self.reverse_matrix = torch.eye(4).roll(2, dims=0)
+        self.possible_actions = torch.tensor(POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID[self.maze_number]).reshape(4, 49).t()
+        # shape 4 x 4, where reverse_matrix[i, j] = 1 if action j is the reverse of action i, else 0
+        return
+
+    def forward(self, state, reward, action_exp):
+        """ note that state here refers to location, not location-action pair"""
+        action_exp_n = F.normalize(action_exp, p=1, dim=-1)
+        action_exp_reverse_n = action_exp_n @ self.reverse_matrix
+        action_mod = F.softmax((action_exp_n - action_exp_reverse_n) * self.inverse_temp, dim=-1)  # ensure that other actions are encouraged but less
+        action_mod_possible = F.normalize(action_mod * self.possible_actions[state], p=1, dim=-1)
+
+        if reward is None:
+            a = Categorical(action_mod_possible.relu()).sample()
+        else:
+            a = Categorical((self.T_no_straight[reward, state] + self.straight_coef * action_mod_possible).relu()).sample()
+
+        # update the state and the action exponential decay
+        # --------------------------------------------------------------------------------------------------------------
+        state_next = state + ((a % 2 == 0) * 7 + (a % 2 == 1) * 1) * ((a <= 1) * 1 + (a > 1) * -1)
+        action_exp = self.action_exp_calculate(state, a, action_exp)
+        terminal = state_next == reward
+        return a, state_next, terminal, action_exp
+
+    def generate_trajectory(self, start_location, reward, action_exp=None, max_length=100):
+        """
+
+        :param start_location: state start
+        :type start_location: torch.Tensor.int
+        :param reward: ending state
+        :type reward: torch.Tensor.int
+        :param T: trajectory matrix
+        :type T: shape = 49 x 4
+        :param alpha: decay
+        :type alpha: torch.Tensor
+        :param frac: how much to effect the transition matrix
+        :type frac: torch.Tensor
+        :param action_exp: exponential decay of previous actions where max needs to be 1.0
+        :type action_exp: torch.Tensor  shape = 4
+        :return: state action trajectory
+        :rtype:
+        """
+        if action_exp is None:
+            action_exp = torch.zeros(4)
+        trajectory = []
+        state = start_location
+        for i in range(max_length):
+            if state < 0 or state >= 49:
+                raise ValueError(f"State {state} is out of bounds. It should be between 0 and 48.")
+                print(state)
+            action, next_s, terminal, action_exp = self.forward(state, reward, action_exp)
+            trajectory.append((49 * action + state).item())
+            state = next_s
+            if terminal:
+                action, _, _, action_exp = self.forward(state=state, reward=None, action_exp=action_exp)
+                trajectory.append((49 * action + state).item())
+                break
+            if i == max_length - 1:
+                action, _, _, action_exp = self.forward(state=state, reward=reward, action_exp=action_exp)
+                trajectory.append((49 * action + state).item())
+        return trajectory, action_exp
+
+    def action_exp_calculate(self, state, action, action_exp):
+        if self.possible_actions[state].sum() == 1:
+            action_exp = F.one_hot(action, 4).float()  # reset the action exponential decay if a dead end
+        else:
+            action_exp = torch.exp(-self.alpha) * action_exp + F.one_hot(action, 4).float()
+        return action_exp
 
 

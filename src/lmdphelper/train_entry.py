@@ -97,14 +97,14 @@ def run_once(args, report_cb=None) -> dict:
         lr=args.lr,
     ).to(device)
 
-    model.R = torch.nn.Parameter(
-        torch.logit(F.normalize(real_routes*(1-1e-12) + 1e-12*(1-real_routes), p=1, dim=-1)).to(device)
-    )
-    model.pi = torch.nn.Parameter(torch.logit(torch.ones(args.n_routes + 1).to(device) / (args.n_routes + 1))).to(device)
-    model.calculate_transition_matrix_and_policies()
+    # model.R = torch.nn.Parameter(
+    #     torch.logit(F.normalize(real_routes*(1-1e-15) + 1e-15*(1-real_routes), p=1, dim=-1)).to(device)
+    # )
+    # model.pi = torch.nn.Parameter(torch.logit(torch.ones(args.n_routes + 1).to(device) / (args.n_routes + 1))).to(device)
+    # model.calculate_transition_matrix_and_policies()
 
     # ----- params + hash
-    if args.saving:
+    if args.saving or args.tensorboard:
         params = dict(
             dataset=args.dataset, maze_number=args.maze_number, subject_index=args.subject_index, kfold=args.kfold,
             n_routes=args.n_routes, cognitive_constant=args.cognitive_constant, action_cost=args.action_cost,
@@ -113,9 +113,10 @@ def run_once(args, report_cb=None) -> dict:
             eval_every=args.eval_every, smooth_k=args.smooth_k
         )
         config_hash = hashlib.md5(json.dumps(params, sort_keys=True).encode()).hexdigest()[:8]
-        best_path = out_root / f"best_{config_hash}.pt"
         with open(f"{out_root}/config_{config_hash}.json", "w") as f:
             json.dump(params, f, indent=2)
+        if args.saving:
+            best_path = out_root / f"best_{config_hash}.pt"
 
     # ----- logging
     if args.tensorboard:
@@ -130,6 +131,7 @@ def run_once(args, report_cb=None) -> dict:
     val_hist = []
     best_epoch = -1
     for i in range(args.epochs):
+        model.calculate_transition_matrix_and_policies(validation=False)
         log_prob, log_start, ent_a, ent_r, ll, acc = model(x_t, a_t, r_t)
 
         if writer and (i % args.log_every == 0):
@@ -142,17 +144,20 @@ def run_once(args, report_cb=None) -> dict:
 
         if (i % args.eval_every == 0) or (i == args.epochs - 1):
             with torch.no_grad():
-                log_prob_v, log_start_v, accuracy_v = model.E_step(x_v, a_v, r_v)
-            # val_metric = float((log_prob_v + log_start_v).item())
-            val_metric = float(accuracy_v.item())
+                model.calculate_transition_matrix_and_policies(validation=True)
+                log_likelihood = model.log_likelihood_under_trained_params(x_v, a_v, r_v)
+                # log_prob_v, log_start_v, accuracy_v = model.E_step(x_v, a_v, r_v)
+            val_metric = float((log_likelihood).item())
+            # val_metric = float(accuracy_v.item())
             val_hist.append(val_metric)
             smoothed = moving_avg(val_hist, args.smooth_k)
             if report_cb is not None:
                 report_cb(step=i, value=float(smoothed))
 
             if writer:
-                writer.add_scalar("val/log_transitions", log_prob_v, i)
-                writer.add_scalar("val/log_start", log_start_v, i)
+                writer.add_scalar("val/log_likelihood", log_likelihood, i)
+                # writer.add_scalar("val/log_transitions", log_prob_v, i)
+                # writer.add_scalar("val/log_start", log_start_v, i)
                 writer.add_scalar("val/metric_raw", val_metric, i)
                 writer.add_scalar("val/metric_smoothed", smoothed, i)
                 if real_routes is not None:

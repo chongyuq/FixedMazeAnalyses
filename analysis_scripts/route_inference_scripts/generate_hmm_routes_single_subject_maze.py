@@ -8,29 +8,30 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     # data / split
     ap.add_argument('--dataset', type=str, default='lmdp_agents')
-    ap.add_argument('--maze_number', type=int, default=2)
-    ap.add_argument('--subject_index', type=int, default=2)
+    ap.add_argument('--maze_number', type=int, default=1)
+    ap.add_argument('--subject_index', type=int, default=5)
     ap.add_argument('--kfold', type=int, default=None)
     ap.add_argument('--sample_ratio', type=float, default=1)
     # model params
-    ap.add_argument('--n_routes', type=int, default=5)
-    ap.add_argument('--cognitive_constant', type=float, default=11.51)  # 11.51
-    ap.add_argument('--action_cost', type=float, default=0.1625)
+    ap.add_argument('--n_routes', type=int, default=4)
+    ap.add_argument('--cognitive_constant', type=float, default=28.28)  # 11.51  28.283460365070333,0.15027235205849984
+
+    ap.add_argument('--action_cost', type=float, default=0.1502)
     ap.add_argument('--reward_value', type=float, default=1.07)  # 1.07
-    ap.add_argument('--route_entropy_param', type=int, default=0.1)
-    ap.add_argument('--action_entropy_param', type=int, default=0.2)
+    ap.add_argument('--route_entropy_param', type=int, default=0)
+    ap.add_argument('--action_entropy_param', type=int, default=0)
     ap.add_argument('--noise', type=float, default=0)
-    ap.add_argument('--noise_decay', type=float, default=1)
+    ap.add_argument('--noise_decay', type=float, default=0.99)
     # training
     ap.add_argument('--lr', type=float, default=0.05)
     ap.add_argument('--seed', type=int, default=0)
-    ap.add_argument('--epochs', type=int, default=1500)
-    ap.add_argument('--eval_every', type=int, default=30)
+    ap.add_argument('--epochs', type=int, default=500)
+    ap.add_argument('--eval_every', type=int, default=50)
     ap.add_argument('--smooth_k', type=int, default=5)
     ap.add_argument('--log_every', type=int, default=10)
     # io
-    ap.add_argument('--saving', type=int, default=0)
-    ap.add_argument('--tensorboard', type=int, default=0)
+    ap.add_argument('--saving', type=int, default=1)
+    ap.add_argument('--tensorboard', type=int, default=1)
     ap.add_argument('--output_dir', type=str, default=f'{root_dir}/inferred_routes/lowrank_lmdp_inferred/temp')
     # ap.add_argument('--true_routes_dir', type=str, default=f'{root_dir}/inferred_routes/lowrank_lmdp_inferred/temp')  # point to your project root if needed
     args = ap.parse_args()

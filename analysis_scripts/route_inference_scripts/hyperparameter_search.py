@@ -12,19 +12,33 @@ import argparse
 
 if __name__ == "__main__":
     root_dir = Path(__file__).parents[2]
-    ap = argparse.ArgumentParser()
+
+    # create preliminary parser to grab --config before everything else
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument("--config", type=str, default=f"{root_dir}/inferred_routes/lowrank_lmdp_inferred/configs/lowrank_lmdp_hpo_default.json")
+    pre_args, _ = pre_parser.parse_known_args()
+
+    # load config and set defaults
+    if pre_args.config is not None and os.path.exists(pre_args.config):
+        with open(pre_args.config, 'r') as f:
+            config = json.load(f)
+    else:
+        print(f"Config file {pre_args.config} not found. Using default command line arguments.")
+
+    # main parser
+    ap = argparse.ArgumentParser(parents=[pre_parser], add_help=False)
 
     # pruning policy
-    ap.add_argument("--min_epochs", type=int, default=300)
+    ap.add_argument("--min_epochs", type=int, default=200)
     ap.add_argument("--max_epochs", type=int, default=2000)
-    ap.add_argument("--n_startup_trials", type=int, default=6)
-    ap.add_argument("--interval_steps", type=int, default=100)
+    ap.add_argument("--n_startup_trials", type=int, default=20)
+    ap.add_argument("--interval_steps", type=int, default=1)
     ap.add_argument("--timeout", type=int, default=3600*9.5)  # in seconds
 
     # data/ training context
     ap.add_argument("--dataset", type=str, default="lmdp_agents")
     ap.add_argument("--maze_number", type=int, default=2)
-    ap.add_argument("--subject_index", type=int, default=2)
+    ap.add_argument("--subject_index", type=int, default=1)
     ap.add_argument("--kfold", type=int, default=None)
     ap.add_argument("--sample_ratio", type=float, default=0.8)
     ap.add_argument("--n_routes", type=int, default=6)
@@ -39,8 +53,13 @@ if __name__ == "__main__":
     ap.add_argument("--saving", type=int, default=0)
     ap.add_argument("--tensorboard", type=int, default=0)
 
+    # parse known args to override config defaults
+    ap.set_defaults(**config)
+
     args = ap.parse_args()
     subject_id = load_subject_IDs(args.dataset)[args.subject_index]
+    print(f"Starting hyperparameter optimization for dataset={args.dataset}, maze_number={args.maze_number}, subject_ID={subject_id}")
+
     kfold_suffix = f"_kfold_{args.kfold}" if args.kfold is not None else ""
 
     fixed = SimpleNamespace(

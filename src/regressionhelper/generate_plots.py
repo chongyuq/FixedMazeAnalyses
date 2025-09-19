@@ -13,10 +13,12 @@ def plot_routeyness(maze_number, regressors, regressors_plot, output_dir=None):
     assert maze_number in [1, 2, 3], "Maze number must be 1, 2, or 3."
     assert all(r in REGRESSORS for r in regressors), f"Regressors must be in {list(REGRESSORS)}."
     assert all(r in REGRESSORS for r in regressors), f"Regressors plot keys must be in {REGRESSORS}."
-    colour = np.array([REGRESSOR_COLOURS[r] for r in regressors])
+    colour = np.array([REGRESSOR_COLOURS[r] for r in regressors_plot])
     regressor_plot_names = [REGRESSOR_PLOT_NAMES[r] for r in regressors_plot]
     aliases = [REGRESSOR_ALIASES[r] for r in regressors]
+    plot_aliases = [REGRESSOR_ALIASES[r] for r in regressors_plot]
     folder_name = '_'.join(aliases)
+    suffix = '_'.join(plot_aliases)
 
     # load data
     #---------------------------------------------------------------------------------------------------------------
@@ -56,7 +58,7 @@ def plot_routeyness(maze_number, regressors, regressors_plot, output_dir=None):
         stats = p_test.statistic
 
         for j, r in enumerate(regressors_plot):
-            r_idx = regressors_plot.index(r)
+            r_idx = regressors.index(r)
             if stats[r_idx] > 0:
                 if pvals[r_idx] <= 0.001:
                     ax[i // 2, i % 2].text(j, y[j] + yerr[j] + 0.01, '***', fontsize=12, color='black', ha='center', va='bottom')
@@ -70,18 +72,19 @@ def plot_routeyness(maze_number, regressors, regressors_plot, output_dir=None):
     ax[1, 0].set_ylabel('Unique Predictability')
     plt.tight_layout()
     if output_dir is not None:
-        plt.savefig(f"{output_dir}/maze_{maze_number}_routeyness_{folder_name}.pdf")
-        print(f"Figure saved to {output_dir}/maze_{maze_number}_routeyness_{folder_name}.pdf")
+        os.makedirs(f"{output_dir}/{folder_name}", exist_ok=True)
+        plt.savefig(f"{output_dir}/{folder_name}/maze_{maze_number}_routeyness_{suffix}.pdf")
+        print(f"Figure saved to {output_dir}/{folder_name}/maze_{maze_number}_routeyness_{suffix}.pdf")
     plt.show()
     return
 
 
-if __name__ == "__main__":
-    root_dir = Path(__file__).parents[2]
-    output_dir = f"{root_dir}/figures/is_it_using_routes_figures"
-    os.makedirs(output_dir, exist_ok=True)
-    regressors = ['vector', 'optimal', 'pca_route', 'pca_route_planning', 'habit', 'forward', 'reverse']
-    regressors_plot = ['vector', 'optimal', 'pca_route', 'pca_route_planning', 'habit', 'forward', 'reverse']
-
-    for maze_number in [1, 2, 3]:
-        plot_routeyness(maze_number, regressors,  regressors_plot, output_dir)
+# if __name__ == "__main__":
+#     root_dir = Path(__file__).parents[2]
+#     output_dir = f"{root_dir}/figures/is_it_using_routes_figures"
+#     os.makedirs(output_dir, exist_ok=True)
+#     regressors = ['vector', 'optimal', 'pca_route', 'pca_route_planning', 'habit', 'forward', 'reverse']
+#     regressors_plot = ['vector', 'optimal', 'pca_route', 'pca_route_planning', 'habit', 'forward', 'reverse']
+#
+#     for maze_number in [1, 2, 3]:
+#         plot_routeyness(maze_number, regressors,  regressors_plot, output_dir)

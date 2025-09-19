@@ -1,4 +1,4 @@
-from nonmarkovianhelper.nonmarkovian_building_funcs import NonMarkovianTrainingDataBuilder
+from nonmarkovianhelper.nonmarkovian_building_funcs import NonMarkovianTrainingDataBuilder, SingleActionUniquePredictabilityFinder
 from regressionhelper.regressor_building_funcs import UniquePredictabilityFinder
 import os
 from pathlib import Path
@@ -41,9 +41,13 @@ def run_nonmarkovian_pipeline(
     X_train, Y_train, X_validation, Y_validation = DataBuilder.build()
 
     # Step 2: Find the unique predictability of each regressor
-    UniquePredictability = UniquePredictabilityFinder(
+    UniquePredictability = SingleActionUniquePredictabilityFinder(
         regressors=['T', 'a_1', 'a_2', 'a_3', 'a_4'],  # time step and actions
     )
+
+    # UniquePredictability = UniquePredictabilityFinder(
+    #     regressors=['T', 'a_1', 'a_2', 'a_3', 'a_4'],  # time step and actions
+    # )
 
     kfolds = len(X_train)
     subject_IDs = list(range(kfolds))
@@ -56,20 +60,18 @@ def run_nonmarkovian_pipeline(
         bootstraps=None,
     )
 
-    # if save_model:
-    #     aliases = [REGRESSOR_ALIASES[r] for r in regressors]
-    #     folder_name = '_'.join(aliases)
-    #     save_path = f"{root_dir}/regression_results/is_it_using_routes_results/{dataset}/{folder_name}"
-    #     os.makedirs(save_path, exist_ok=True)
-    #     torch.save({
-    #         'coefs': torch.stack(coefs),
-    #         'neg_log_likelihoods': torch.stack(neg_log_likelihoods),
-    #         'accuracies': torch.stack(accuracies)
-    #     }, f"{save_path}/maze_{maze_number}_regression_model.pt")
-    #     print(f"Model saved to {save_path}/maze_{maze_number}_regression_model.pt")
-    #     return
-    # else:
-    return x
+    if save_model:
+        save_path = f"{root_dir}/regression_results/is_it_markovian_results/{dataset}"
+        os.makedirs(save_path, exist_ok=True)
+        torch.save({
+            'coefs': x['coefs'],
+            'neg_log_likelihoods': x['neg_log_likelihoods'],
+            'accuracies': x['accuracies']
+        }, f"{save_path}/maze_{maze_number}_regression_model.pt")
+        print(f"Model saved to {save_path}/maze_{maze_number}_regression_model.pt")
+        return
+    else:
+        return x
 
 
 if __name__ == "__main__":

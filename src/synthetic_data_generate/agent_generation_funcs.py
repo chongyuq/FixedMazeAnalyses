@@ -12,7 +12,8 @@ from mazehelper.transition_matrix_functions import *
 from mazehelper.mazes_info import POSSIBLE_LOCATION_ACTION_FOR_MAZE_ID
 
 from synthetic_data_generate.route_generation_funcs import random_route_generate
-from synthetic_data_generate.agent_support_funcs import VectorOptimalForwardPlanner, DijkstraRoutePlanner
+from synthetic_data_generate.agent_support_funcs import VectorOptimalForwardPlanner, DijkstraRoutePlanner, \
+    VectorOptimalExponentialActionPlanner
 
 
 def generate_synthetic_agents(maze_number, n_agents=6, agent_type=None, overwrite=True):
@@ -112,6 +113,7 @@ def generate_synthetic_agents(maze_number, n_agents=6, agent_type=None, overwrit
 
             # save the LMDP agents data
             # -----------------------------------------------------------------------------
+            os.makedirs(f'{root_dir}/data/synthetic_data/lmdp', exist_ok=True)
             lmdp_agents_meta_data.to_csv(f'{root_dir}/data/synthetic_data/lmdp/lmdp_agents_meta_data_{maze_number}.csv', index=False)
             lmdp_agents_trajectories_df.to_csv(f'{root_dir}/data/synthetic_data/lmdp/lmdp_agents_maze_{maze_number}.csv', index=False)
             print(f'LMDP agents for maze {maze_number} generated and saved successfully.')
@@ -136,6 +138,7 @@ def generate_synthetic_agents(maze_number, n_agents=6, agent_type=None, overwrit
 
             # save the Dijkstra agents data
             # -----------------------------------------------------------------------------
+            os.makedirs(f'{root_dir}/data/synthetic_data/dijkstra', exist_ok=True)
             dijkstra_agents_meta_data.to_csv(f'{root_dir}/data/synthetic_data/dijkstra/dijkstra_agents_meta_data_{maze_number}.csv', index=False)
             dijkstra_agents_trajectories_df.to_csv(f'{root_dir}/data/synthetic_data/dijkstra/dijkstra_agents_maze_{maze_number}.csv', index=False)
             print(f'Dijkstra agents for maze {maze_number} generated and saved successfully.')
@@ -166,6 +169,7 @@ def generate_synthetic_agents(maze_number, n_agents=6, agent_type=None, overwrit
 
             # save the non-markovian agents data
             # -----------------------------------------------------------------------------
+            os.makedirs(f'{root_dir}/data/synthetic_data/non_markovian', exist_ok=True)
             non_markovian_agents_meta_data.to_csv(f'{root_dir}/data/synthetic_data/non_markovian/non_markovian_agents_meta_data_{maze_number}.csv', index=False)
             non_markovian_agents_trajectories_df.to_csv(f'{root_dir}/data/synthetic_data/non_markovian/non_markovian_agents_maze_{maze_number}.csv', index=False)
             print(f'Non-markovian agents for maze {maze_number} generated and saved successfully.')
@@ -194,6 +198,7 @@ def generate_synthetic_agents(maze_number, n_agents=6, agent_type=None, overwrit
 
             # save the markovian agents data
             # -----------------------------------------------------------------------------
+            os.makedirs(f'{root_dir}/data/synthetic_data/markovian', exist_ok=True)
             markov_agents_meta_data.to_csv(f'{root_dir}/data/synthetic_data/markovian/markovian_agents_meta_data_{maze_number}.csv', index=False)
             markov_agents_trajectories_df.to_csv(f'{root_dir}/data/synthetic_data/markovian/markovian_agents_maze_{maze_number}.csv', index=False)
             print(f'Markovian agents for maze {maze_number} generated and saved successfully.')
@@ -222,11 +227,13 @@ def generate_vector_optimal_straight_agent(maze_number, agent_number, vector_coe
     :return:
     :rtype:
     """
-    planner = VectorOptimalForwardPlanner(
+    planner = VectorOptimalExponentialActionPlanner(
         maze_number=maze_number,
         vector_coef=vector_coef_distribution.sample().item(),
         optimal_coef=optimal_coef_distribution.sample().item(),
-        straight_coef=straight_coef_distribution.sample().item()
+        straight_coef=straight_coef_distribution.sample().item(),
+        alpha=0.35,
+        inverse_temp=3
     )
 
     simulated_steps = steps_distribution.sample()
@@ -619,6 +626,8 @@ def simulate_data(planner, maze_number, simulated_steps, navigation_time_at_node
     steps, trial = 0, 0
     prev_reward = None
     a_prev = None
+    if isinstance(planner, VectorOptimalExponentialActionPlanner):
+        action_exp = torch.zeros(4)
 
     while steps < simulated_steps:
         finish = locs.sample()
@@ -627,6 +636,9 @@ def simulate_data(planner, maze_number, simulated_steps, navigation_time_at_node
         if isinstance(planner, LowRankLMDP) or isinstance(planner, DijkstraRoutePlanner):
             a = planner.generate_trajectory(start, finish)
             trajectory = [route * 196 + state for state, route in a]  # convert to route index
+        if isinstance(planner, VectorOptimalExponentialActionPlanner):
+            a, action_exp = planner.generate_trajectory(start, finish, action_exp=action_exp)
+            trajectory = a
         else:
             a = planner.generate_trajectory(start, finish, previous_action=a_prev)
             trajectory = a
@@ -644,7 +656,7 @@ def simulate_data(planner, maze_number, simulated_steps, navigation_time_at_node
         # ------------------------------------------------------------------------------------------------------
         n_ITI_steps = ITI_steps_distribution.sample().round().int()
         steps += n_ITI_steps
-        s_prev, a_prev = finish, trajectory[-1] % 196 // 49
+        s_prev, a_prev = trajectory[-1] % 196 % 49, trajectory[-1] % 196 // 49
         s_new = s_prev + (((a_prev % 2) == 0) * 7 + ((a_prev % 2) == 1) * 1) * \
                 ((a_prev <= 1) * 1 + (a_prev > 1) * -1)
         iti_steps, iti_times = iti_steps_generate(maze_number=maze_number,
@@ -661,6 +673,14 @@ def simulate_data(planner, maze_number, simulated_steps, navigation_time_at_node
                 trajectory.extend([-196 + i for i in iti_steps])  # allocate route index = -1 n_routes + 2 to ITI
             else:
                 trajectory.extend(iti_steps)
+
+
+        # update action_exp if the planner is VectorOptimalExponentialActionPlanner
+        # ------------------------------------------------------------------------------------------------------
+        if isinstance(planner, VectorOptimalExponentialActionPlanner):
+            for step in iti_steps:
+                state, action = step % 49, step // 49
+                action_exp = planner.action_exp_calculate(state=state, action=action, action_exp=action_exp)
 
         # store the trajectory data
         # ------------------------------------------------------------------------------------------------------
